@@ -25,32 +25,36 @@ namespace FixSystemTime
             public short wMilliseconds;
         }
 
-        public static DateTime GetNistTime()
+        public static DateTime GetTime()
         {
             DateTime dateTime = DateTime.MinValue;
-
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://nist.time.gov/actualtime.cgi?lzbc=siqm9b");
+            System.Net.HttpWebRequest request = (System.Net.HttpWebRequest)System.Net.WebRequest.Create("http://www.google.com");
             request.Method = "GET";
             request.Accept = "text/html, application/xhtml+xml, */*";
             request.UserAgent = "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)";
             request.ContentType = "application/x-www-form-urlencoded";
-            request.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore); //No caching
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            if (response.StatusCode == HttpStatusCode.OK)
+            request.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.NoCacheNoStore);
+            System.Net.HttpWebResponse response = (System.Net.HttpWebResponse)request.GetResponse();
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
             {
-                StreamReader stream = new StreamReader(response.GetResponseStream());
-                string html = stream.ReadToEnd();//<timestamp time=\"1395772696469995\" delay=\"1395772696469995\"/>
-                string time = Regex.Match(html, @"(?<=\btime="")[^""]*").Value;
-                double milliseconds = Convert.ToInt64(time) / 1000.0;
-                dateTime = new DateTime(1970, 1, 1).AddMilliseconds(milliseconds).ToLocalTime();
+                string todaysDates = response.Headers["date"];
+
+                dateTime = DateTime.ParseExact(todaysDates, "ddd, dd MMM yyyy HH:mm:ss 'GMT'",
+                    System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat, System.Globalization.DateTimeStyles.AssumeUniversal);
             }
 
             return dateTime;
         }
 
+        private static int ChangeHour()
+        {
+            var text = File.ReadAllText("changeHour");
+            return int.Parse(text);
+        }
+
         private static void Main()
         {
-            var date = GetNistTime();
+            var date = GetTime();
             var st = new SystemTime
             {
                 wYear = (short)date.Year,
@@ -62,6 +66,8 @@ namespace FixSystemTime
                 wDayOfWeek = (short)date.DayOfWeek,
                 wMilliseconds = (short)date.Millisecond
             };
+            st.wHour = (short) (st.wHour + ChangeHour());
+
             if (st.wHour == 0)
                 st.wHour = 23;
             else
